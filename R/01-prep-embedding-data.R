@@ -31,25 +31,32 @@ fp_2024 = gsub(
     ".vrt",
     gsub("^s3://", "/vsis3/", idx_ms_2024$path)
 )
-dequantize = function(x){
-    ((x / 127.5) ^ 2) * sign(x)
+dequantize = function(x, filename = "", overwrite = TRUE, ...) {
+    terra::app(
+        x,
+        fun = function(v) ((v / 127.5) ^ 2) * sign(v),
+        filename = filename,
+        overwrite = overwrite,
+        ...
+    )
 }
 
 dir.create("~/tmp")
 terra::terraOptions(tempdir = "~/tmp/", todisk = TRUE)
 ms_2024 = rast(fp_2024)
-ms_2024_d = dequantize(ms_2024)
-writeRaster(ms_2024_d, "ms_2024_dequantized.tif", overwrite = TRUE)
+system.time({
+    ms_2024_d = dequantize(ms_2024, filename = "data/ms_2024_dequantized.tif", overwrite = TRUE)
+})
 unlink("~/tmp")
 
 ms_buf_p = st_transform(ms_buf, crs(ms_2024_d))
 ms_2024_dc = crop(ms_2024_d, ms_buf_p, mask = TRUE)
-writeRaster(ms_2024_dc, "ms_2024_dc.tif", overwrite = TRUE)
+writeRaster(ms_2024_dc, "data/ms_2024_dc.tif", overwrite = TRUE)
 
 ### test
 library(terra)
 library(supercells)
-ms_2024_dc = rast("ms_2024_dc.tif")
+ms_2024_dc = rast("data/ms_2024_dc.tif")
 sc_tune_compactness(ms_2024_dc, step = 25, metrics = "local")
 
 sc = sc_slic(ms_2024_dc, step = 25, compactness =  0.05)
