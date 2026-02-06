@@ -7,7 +7,6 @@ CRAN (https://CRAN.R-project.org/package=supercells) and GitHub (https://github.
 ## Datasets (data/)
 
 - `muenster_embeddings_2024.tif` - A compact embedding raster for the Muenster area in 2024; a 64-band feature raster stack that is a realistic high-dimensional input for supercells.
-<!-- - `muenster_embeddings_2024_dequant.tif` - dequantized intermediate (optional/local tests). -->
 - `muenster-landsat_2024.tif` - A simple 4-band Landsat composite (blue/green/red/nir) for 2024, useful for quick visual checks and classic remote-sensing examples.
 - `poland_evi_2020_bimonthly.tif` - Six bimonthly EVI layers for Poland in 2020; good for showing how supercells behave on seasonal vegetation dynamics.
 - `poland_tmax_monthly.tif` - Monthly maximum temperature climatology for Poland; a smooth, low-noise surface.
