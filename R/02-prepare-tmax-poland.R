@@ -21,7 +21,7 @@ names(pol_tmax_c) = month.name
 
 writeRaster(
     pol_tmax_c,
-    filename = "data/tmax_poland_worldclim.tif",
+    filename = "data/poland_tmax_monthly.tif",
     overwrite = TRUE,
     filetype = "COG",
     wopt = list(

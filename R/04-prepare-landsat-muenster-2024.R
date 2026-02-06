@@ -7,7 +7,7 @@ Sys.setenv(AWS_NO_SIGN_REQUEST = "YES")
 out_dir = "data/openlandmap"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-# study area (same as 01-prep-embedding-data.R)
+# study area (same as 01-prepare-embeddings-muenster-2024.R)
 ms_buf = data.frame(lon = 7.66, lat = 51.944) |>
     st_as_sf(coords = c("lon", "lat"), crs = 4326) |>
     st_buffer(5000)
@@ -31,7 +31,7 @@ names(r) = c("blue", "green", "red", "nir")
 
 writeRaster(
     r,
-    filename = "data/landsat_glad_swa_ard2_p50_2024_ms.tif",
+    filename = "data/muenster-landsat_2024.tif",
     overwrite = TRUE,
     gdal = "COG",
     wopt = list(
