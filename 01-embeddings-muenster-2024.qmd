@@ -1,0 +1,142 @@
+---
+title: "Muenster Embeddings 2024: Supercells Workflow"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+idea notes: do not remove
+- embeddings: euclidean vs cosine
+- tuned vs auto compactness
+- main ideas presented:
+- compare distance functions for high-dimensional embeddings
+- compare tuned and auto compactness under fixed distance
+- evaluate outcomes with boundary plots and global metrics
+- for cosine distance, tune compactness with value_scale = 1
+-->
+
+```{r setup}
+library(terra)
+library(sf)
+library(supercells)
+```
+
+## Load input data
+
+```{r read-data}
+emb <- rast("data/muenster_embeddings_2024.tif")
+emb
+```
+
+## Tune compactness for Euclidean and cosine
+
+```{r tune-compactness}
+step_size <- 25
+
+tune_euclidean <- sc_tune_compactness(
+  emb,
+  step = step_size,
+  metric = "local",
+  dist_fun = "euclidean"
+)
+
+tune_cosine <- sc_tune_compactness(
+  emb,
+  step = step_size,
+  metric = "local",
+  dist_fun = "cosine",
+  value_scale = 1
+)
+
+tune_tbl <- rbind(
+  transform(tune_euclidean, run = "euclidean_auto_scale"),
+  transform(tune_cosine, run = "cosine_value_scale_1")
+)
+tune_tbl
+```
+
+## Build supercells with tuned compactness
+
+```{r build-supercells-distance}
+sc_euclidean_tuned <- sc_slic(
+  emb,
+  step = step_size,
+  compactness = tune_euclidean$compactness[[1]],
+  dist_fun = "euclidean",
+  outcomes = c("supercells", "values")
+)
+sc_cosine_tuned <- sc_slic(
+  emb,
+  step = step_size,
+  compactness = tune_cosine$compactness[[1]],
+  dist_fun = "cosine",
+  outcomes = c("supercells", "values")
+)
+cat("Euclidean tuned supercells:", nrow(sc_euclidean_tuned), "\n")
+cat("Cosine tuned supercells:", nrow(sc_cosine_tuned), "\n")
+```
+
+## Plot tuned distance runs
+
+```{r plot-distance-runs, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
+
+plotRGB(emb, r = 30, g = 20, b = 10, stretch = "lin", main = "Euclidean")
+plot(st_geometry(sc_euclidean_tuned), add = TRUE, border = "red", lwd = 0.6)
+
+plotRGB(emb, r = 30, g = 20, b = 10, stretch = "lin", main = "Cosine")
+plot(st_geometry(sc_cosine_tuned), add = TRUE, border = "yellow", lwd = 0.6)
+```
+
+## Compare global metrics for tuned distance runs
+
+```{r metrics-distance-runs}
+metrics_distance <- rbind(
+  transform(sc_metrics_global(emb, sc_euclidean_tuned), run = "euclidean_tuned"),
+  transform(sc_metrics_global(emb, sc_cosine_tuned), run = "cosine_tuned")
+)
+metrics_distance
+```
+
+## Build cosine supercells with auto compactness
+
+```{r build-auto-compactness}
+sc_cosine_auto <- sc_slic(
+  emb,
+  step = step_size,
+  compactness = "auto",
+  dist_fun = "cosine",
+  outcomes = c("supercells", "values")
+)
+cat("Cosine auto supercells:", nrow(sc_cosine_auto), "\n")
+```
+
+## Plot tuned versus auto compactness for cosine
+
+```{r plot-compactness-runs, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
+
+plotRGB(emb, r = 30, g = 20, b = 10, stretch = "lin", main = "Cosine tuned")
+plot(st_geometry(sc_cosine_tuned), add = TRUE, border = "yellow", lwd = 0.6)
+
+plotRGB(emb, r = 30, g = 20, b = 10, stretch = "lin", main = "Cosine auto")
+plot(st_geometry(sc_cosine_auto), add = TRUE, border = "cyan", lwd = 0.6)
+```
+
+## Compare global metrics for tuned versus auto compactness
+
+```{r metrics-compactness-runs}
+metrics_compactness <- rbind(
+  transform(sc_metrics_global(emb, sc_cosine_tuned), run = "cosine_tuned"),
+  transform(sc_metrics_global(emb, sc_cosine_auto), run = "cosine_auto")
+)
+metrics_compactness <- metrics_compactness[, c(
+  "run",
+  "n_supercells",
+  "mean_combined_dist",
+  "balance"
+)]
+metrics_compactness
+```

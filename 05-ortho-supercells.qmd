@@ -1,0 +1,149 @@
+---
+title: "Ortho Example from supercells: RGB and LAB Workflow"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+idea notes: do not remove
+- rgb to lab and back
+- compare segmentation on rgb and lab
+- main ideas presented:
+- run a full RGB -> LAB -> RGB workflow on the built-in ortho example
+- build a quick RGB-only baseline with auto compactness
+- compare workflow boundaries and global metrics directly
+-->
+
+```{r setup}
+library(terra)
+library(sf)
+library(supercells)
+library(farver)
+```
+
+## Load input data
+
+```{r read-data}
+ortho <- rast(system.file("raster/ortho.tif", package = "supercells"))
+ortho
+r_rgb <- ortho[[1:3]]
+names(r_rgb) <- c("red", "green", "blue")
+```
+
+## Show RGB image first
+
+```{r show-rgb, fig.width=7, fig.height=6}
+plotRGB(r_rgb, r = 1, g = 2, b = 3, main = "Ortho RGB")
+```
+
+## Define RGB and LAB conversion helpers
+
+```{r conversion-functions}
+rgb_to_lab <- function(r_rgb) {
+  rgb_vals <- values(r_rgb, mat = TRUE)
+  lab_vals <- farver::convert_colour(rgb_vals, from = "rgb", to = "lab")
+  r_lab <- setValues(rast(r_rgb), lab_vals)
+  names(r_lab) <- c("L", "a", "b")
+  r_lab
+}
+
+lab_to_rgb <- function(r_lab) {
+  lab_vals <- values(r_lab, mat = TRUE)
+  rgb_vals <- farver::convert_colour(lab_vals, from = "lab", to = "rgb")
+  rgb_vals[rgb_vals < 0] <- 0
+  rgb_vals[rgb_vals > 1] <- 1
+  r_rgb <- setValues(rast(r_lab), rgb_vals)
+  names(r_rgb) <- c("red", "green", "blue")
+  r_rgb
+}
+```
+
+## Prepare RGB and LAB representations
+
+```{r preprocess}
+step_size <- 5
+r_lab <- rgb_to_lab(r_rgb)
+r_rgb_back <- lab_to_rgb(r_lab)
+```
+
+## Workflow 1: RGB to LAB to RGB
+
+```{r build-lab-workflow}
+tune_lab <- sc_tune_compactness(r_lab, step = step_size, metrics = "local")
+sc_lab <- sc_slic(
+  r_lab,
+  step = step_size,
+  compactness = tune_lab$compactness[[1]],
+  outcomes = c("supercells", "values")
+)
+cat("LAB-workflow supercells:", nrow(sc_lab), "\n")
+```
+
+## Plot LAB workflow boundaries
+
+```{r plot-lab-boundaries}
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "LAB supercell boundaries")
+plot(st_geometry(sc_lab), add = TRUE, border = "red", lwd = 0.5)
+```
+
+## Convert LAB supercell colors back to RGB
+
+```{r lab-supercells-to-rgb}
+lab_avg <- st_drop_geometry(sc_lab[, c("L", "a", "b")])
+rgb_avg <- farver::convert_colour(as.matrix(lab_avg), from = "lab", to = "rgb")
+color_hex <- farver::encode_colour(rgb_avg, from = "rgb")
+```
+
+## Plot RGB to LAB back-conversion
+
+```{r plot-back-conversion, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = rep(0, 4))
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, main = "Original RGB")
+plot(st_geometry(sc_lab), border = color_hex, col = color_hex, main = "Supercells")
+```
+
+## Workflow 2: quick RGB-only baseline
+
+```{r build-rgb-workflow}
+sc_rgb_auto <- sc_slic(
+  r_rgb,
+  step = step_size,
+  compactness = "auto",
+  outcomes = c("supercells", "values")
+)
+cat("RGB-auto supercells:", nrow(sc_rgb_auto), "\n")
+```
+
+## Plot workflow 2 boundaries
+
+```{r plot-rgb-boundaries, fig.width=7, fig.height=6}
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "RGB-auto segmentation")
+plot(st_geometry(sc_rgb_auto), add = TRUE, border = "yellow", lwd = 0.5)
+```
+
+## Compare workflow boundaries
+
+```{r compare-boundaries, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "Workflow 1: LAB")
+plot(st_geometry(sc_lab), add = TRUE, border = "red", lwd = 0.35)
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "Workflow 2: RGB auto")
+plot(st_geometry(sc_rgb_auto), add = TRUE, border = "yellow", lwd = 0.35)
+```
+
+## Compare global metrics
+
+```{r compare-metrics}
+metrics_lab = sc_metrics_global(r_lab, sc_lab)
+metrics_lab$run = "lab_workflow"
+metrics_rgb = sc_metrics_global(r_rgb, sc_rgb_auto)
+metrics_rgb$run = "rgb_auto"
+
+metrics <- rbind(metrics_lab, metrics_rgb)
+metrics
+```

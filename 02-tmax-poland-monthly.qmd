@@ -1,0 +1,138 @@
+---
+title: "Poland Tmax Monthly: Supercells Workflow"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+idea notes: do not remove
+- dtw distance
+- maybe merge
+- main ideas presented:
+- compare euclidean and dtw distances on monthly temperature profiles
+- assess the effect of layer scaling for dtw-based segmentation
+- evaluate boundaries and compact global metrics across runs
+-->
+
+```{r setup}
+library(terra)
+library(sf)
+library(supercells)
+```
+
+## Load input data
+
+```{r read-data}
+tmax <- rast("data/poland_tmax_monthly.tif")
+tmax
+```
+
+## Prepare a scaled temperature stack
+
+```{r preprocess}
+tmax_scaled <- scale(tmax)
+tmax_scaled
+```
+
+## Tune compactness for Euclidean and DTW
+
+```{r tune-compactness}
+step_size <- 50
+
+tune_euclidean <- sc_tune_compactness(
+  tmax,
+  step = step_size,
+  metric = "local",
+  dist_fun = "euclidean"
+)
+tune_dtw_raw <- sc_tune_compactness(
+  tmax,
+  step = step_size,
+  metric = "local",
+  dist_fun = "dtw"
+)
+tune_dtw_scaled <- sc_tune_compactness(
+  tmax_scaled,
+  step = step_size,
+  metric = "local",
+  dist_fun = "dtw"
+)
+
+tune_tbl <- data.frame(
+  run = c("euclidean_raw", "dtw_raw", "dtw_scaled"),
+  compactness = c(
+    tune_euclidean$compactness[[1]],
+    tune_dtw_raw$compactness[[1]],
+    tune_dtw_scaled$compactness[[1]]
+  )
+)
+tune_tbl
+```
+
+## Build supercells
+
+```{r build-supercells}
+sc_euclidean_raw <- sc_slic(
+  tmax,
+  step = step_size,
+  compactness = tune_euclidean$compactness[[1]],
+  dist_fun = "euclidean",
+  outcomes = c("supercells", "values")
+)
+sc_dtw_raw <- sc_slic(
+  tmax,
+  step = step_size,
+  compactness = tune_dtw_raw$compactness[[1]],
+  dist_fun = "dtw",
+  outcomes = c("supercells", "values")
+)
+sc_dtw_scaled <- sc_slic(
+  tmax_scaled,
+  step = step_size,
+  compactness = tune_dtw_scaled$compactness[[1]],
+  dist_fun = "dtw",
+  outcomes = c("supercells", "values")
+)
+
+cat("Euclidean (raw) supercells:", nrow(sc_euclidean_raw), "\n")
+cat("DTW (raw) supercells:", nrow(sc_dtw_raw), "\n")
+cat("DTW (scaled) supercells:", nrow(sc_dtw_scaled), "\n")
+```
+
+## Plot January boundaries
+
+```{r plot-boundaries, fig.width=9, fig.height=16}
+par(mfrow = c(3, 1), mar = c(3, 3, 2, 1))
+
+plot(tmax[[1]], main = "Euclidean on raw")
+plot(st_geometry(sc_euclidean_raw), add = TRUE, border = "red", lwd = 0.5)
+
+plot(tmax[[1]], main = "DTW on raw")
+plot(st_geometry(sc_dtw_raw), add = TRUE, border = "yellow", lwd = 0.5)
+
+plot(tmax[[1]], main = "DTW on scaled")
+plot(st_geometry(sc_dtw_scaled), add = TRUE, border = "cyan", lwd = 0.5)
+```
+
+## Compare global metrics
+
+Note: `euclidean_raw` and `dtw_raw` are directly comparable because both are computed on the raw raster (`tmax`).  
+`dtw_scaled` is computed on standardized values (`tmax_scaled`), so it is reported separately.
+
+```{r compare-metrics}
+metrics_raw <- rbind(
+  transform(sc_metrics_global(tmax, sc_euclidean_raw), run = "euclidean_raw"),
+  transform(sc_metrics_global(tmax, sc_dtw_raw), run = "dtw_raw")
+)
+metrics_raw
+```
+
+```{r compare-metrics-scaled}
+metrics_scaled <- transform(
+  sc_metrics_global(tmax_scaled, sc_dtw_scaled),
+  run = "dtw_scaled"
+)
+metrics_scaled
+```

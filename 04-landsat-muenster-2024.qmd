@@ -1,0 +1,168 @@
+---
+title: "Muenster Landsat 2024: Supercells Workflow"
+format: html
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+idea notes: do not remove
+- rgb to lab and back
+- compare segmentation on rgb and lab
+- main ideas presented:
+- convert SpatRaster RGB data to LAB and back using helper functions
+- compare RGB- and LAB-based supercell segmentation
+- convert LAB supercell averages back to RGB/hex for interpretation
+-->
+
+```{r setup}
+library(terra)
+library(sf)
+library(supercells)
+```
+
+## Load input data
+
+```{r read-data}
+landsat <- rast("data/muenster-landsat_2024.tif")
+landsat
+r_rgb <- landsat[[c("red", "green", "blue")]]
+```
+
+## Show RGB image first
+
+```{r show-rgb, fig.width=7, fig.height=6}
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "Landsat RGB")
+```
+
+## Define RGB and LAB conversion helpers
+
+```{r conversion-functions}
+rgb_to_lab_spatraster <- function(r_rgb) {
+  rgb_vals <- values(r_rgb, mat = TRUE)
+  lab_vals <- farver::convert_colour(rgb_vals, from = "rgb", to = "lab")
+  r_lab <- setValues(rast(r_rgb), lab_vals)
+  names(r_lab) <- c("L", "a", "b")
+  r_lab
+}
+
+lab_to_rgb_spatraster <- function(r_lab) {
+  lab_vals <- values(r_lab, mat = TRUE)
+  rgb_vals <- farver::convert_colour(lab_vals, from = "lab", to = "rgb")
+  rgb_vals[rgb_vals < 0] <- 0
+  rgb_vals[rgb_vals > 1] <- 1
+  r_rgb <- setValues(rast(r_lab), rgb_vals)
+  names(r_rgb) <- c("red", "green", "blue")
+  r_rgb
+}
+
+rgb_to_hex <- function(x) {
+  apply(
+    t(x),
+    2,
+    function(v) grDevices::rgb(v[1], v[2], v[3], maxColorValue = 1)
+  )
+}
+```
+
+## Prepare RGB and LAB representations
+
+```{r preprocess}
+step_size <- 18
+r_lab <- rgb_to_lab_spatraster(r_rgb)
+r_rgb_back <- lab_to_rgb_spatraster(r_lab)
+```
+
+## Tune compactness for RGB and LAB
+
+```{r tune-compactness}
+tune_rgb <- sc_tune_compactness(r_rgb, step = step_size, metrics = "local")
+tune_lab <- sc_tune_compactness(r_lab, step = step_size, metrics = "local")
+
+tune_tbl <- data.frame(
+  run = c("rgb", "lab"),
+  compactness = c(tune_rgb$compactness[[1]], tune_lab$compactness[[1]])
+)
+tune_tbl
+```
+
+## Build supercells
+
+```{r build-supercells}
+sc_rgb <- sc_slic(
+  r_rgb,
+  step = step_size,
+  compactness = tune_rgb$compactness[[1]],
+  outcomes = c("supercells", "values")
+)
+sc_lab <- sc_slic(
+  r_lab,
+  step = step_size,
+  compactness = tune_lab$compactness[[1]],
+  outcomes = c("supercells", "values")
+)
+cat("RGB supercells:", nrow(sc_rgb), "\n")
+cat("LAB supercells:", nrow(sc_lab), "\n")
+```
+
+## Convert LAB supercell colors back to RGB
+
+```{r lab-supercells-to-rgb}
+lab_avg <- st_drop_geometry(sc_lab[, c("L", "a", "b")])
+rgb_avg <- farver::convert_colour(as.matrix(lab_avg), from = "lab", to = "rgb")
+rgb_avg[rgb_avg < 0] <- 0
+rgb_avg[rgb_avg > 1] <- 1
+
+sc_lab_colors <- sc_lab
+sc_lab_colors$color_hex <- rgb_to_hex(rgb_avg)
+head(sc_lab_colors[, c("supercells", "L", "a", "b", "color_hex")])
+```
+
+## Plot RGB to LAB back-conversion
+
+```{r plot-back-conversion, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "Original RGB")
+plotRGB(r_rgb_back, r = 1, g = 2, b = 3, stretch = "lin", main = "RGB <- LAB")
+```
+
+## Plot segmentation boundaries
+
+```{r plot-boundaries, fig.width=14, fig.height=5}
+par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "RGB segmentation")
+plot(st_geometry(sc_rgb), add = TRUE, border = "red", lwd = 0.35)
+
+plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "LAB segmentation")
+plot(st_geometry(sc_lab), add = TRUE, border = "dodgerblue3", lwd = 0.35)
+```
+
+## Plot LAB segmentation with converted colors
+
+```{r plot-lab-colors, fig.width=7, fig.height=6}
+plot(
+  st_geometry(sc_lab_colors),
+  col = sc_lab_colors$color_hex,
+  border = NA,
+  main = "LAB supercells as RGB hex"
+)
+```
+
+## Compare global metrics
+
+```{r compare-metrics}
+metrics <- rbind(
+  transform(sc_metrics_global(r_rgb, sc_rgb), run = "rgb_tuned"),
+  transform(sc_metrics_global(r_lab, sc_lab), run = "lab_tuned")
+)
+metrics <- metrics[, c(
+  "run",
+  "n_supercells",
+  "mean_combined_dist",
+  "balance"
+)]
+metrics
+```
