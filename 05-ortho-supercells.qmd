@@ -1,9 +1,5 @@
 ---
 title: "Ortho Example from supercells: RGB and LAB Workflow"
-format: html
-execute:
-  warning: false
-  message: false
 ---
 
 <!--
@@ -34,7 +30,9 @@ names(r_rgb) <- c("red", "green", "blue")
 
 ## Show RGB image first
 
-```{r show-rgb, fig.width=7, fig.height=6}
+```{r show-rgb}
+#| fig-width: 8
+#| fig-height: 4.5
 plotRGB(r_rgb, r = 1, g = 2, b = 3, main = "Ortho RGB")
 ```
 
@@ -71,7 +69,7 @@ r_rgb_back <- lab_to_rgb(r_lab)
 ## Workflow 1: RGB to LAB to RGB
 
 ```{r build-lab-workflow}
-tune_lab <- sc_tune_compactness(r_lab, step = step_size, metrics = "local")
+tune_lab <- sc_tune_compactness(r_lab, step = step_size, metric = "local")
 sc_lab <- sc_slic(
   r_lab,
   step = step_size,
@@ -84,6 +82,8 @@ cat("LAB-workflow supercells:", nrow(sc_lab), "\n")
 ## Plot LAB workflow boundaries
 
 ```{r plot-lab-boundaries}
+#| fig-width: 8
+#| fig-height: 4.5
 plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "LAB supercell boundaries")
 plot(st_geometry(sc_lab), add = TRUE, border = "red", lwd = 0.5)
 ```
@@ -98,11 +98,13 @@ color_hex <- farver::encode_colour(rgb_avg, from = "rgb")
 
 ## Plot RGB to LAB back-conversion
 
-```{r plot-back-conversion, fig.width=12, fig.height=5}
-par(mfrow = c(1, 2), mar = rep(0, 4))
-
-plotRGB(r_rgb, r = 1, g = 2, b = 3, main = "Original RGB")
-plot(st_geometry(sc_lab), border = color_hex, col = color_hex, main = "Supercells")
+```{r plot-back-conversion}
+#| fig-width: 8
+#| fig-height: 4.5
+#| layout-ncol: 1
+par(mar = c(0, 0, 0, 0))
+plotRGB(r_rgb, r = 1, g = 2, b = 3)
+plot(st_geometry(sc_lab), border = color_hex, col = color_hex, xaxs = "i", yaxs = "i")
 ```
 
 ## Workflow 2: quick RGB-only baseline
@@ -111,7 +113,7 @@ plot(st_geometry(sc_lab), border = color_hex, col = color_hex, main = "Supercell
 sc_rgb_auto <- sc_slic(
   r_rgb,
   step = step_size,
-  compactness = "auto",
+  compactness = use_adaptive(),
   outcomes = c("supercells", "values")
 )
 cat("RGB-auto supercells:", nrow(sc_rgb_auto), "\n")
@@ -119,16 +121,19 @@ cat("RGB-auto supercells:", nrow(sc_rgb_auto), "\n")
 
 ## Plot workflow 2 boundaries
 
-```{r plot-rgb-boundaries, fig.width=7, fig.height=6}
+```{r plot-rgb-boundaries}
+#| fig-width: 8
+#| fig-height: 4.5
 plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "RGB-auto segmentation")
 plot(st_geometry(sc_rgb_auto), add = TRUE, border = "yellow", lwd = 0.5)
 ```
 
 ## Compare workflow boundaries
 
-```{r compare-boundaries, fig.width=12, fig.height=5}
-par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
-
+```{r compare-boundaries}
+#| fig-width: 8
+#| fig-height: 4.5
+#| layout-ncol: 1
 plotRGB(r_rgb, r = 1, g = 2, b = 3, stretch = "lin", main = "Workflow 1: LAB")
 plot(st_geometry(sc_lab), add = TRUE, border = "red", lwd = 0.35)
 
