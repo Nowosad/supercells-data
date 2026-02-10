@@ -11,8 +11,8 @@ lab_vals = grDevices::convertColor(vals01, from = "sRGB", to = "Lab")
 r_lab = setValues(rast(r_rgb), lab_vals)
 names(r_lab) = c("L", "a", "b")
 
-tune = sc_tune_compactness(r_lab, step = 16, metrics = "local")
-sc = sc_slic(r_lab, step = 16, compactness = tune$compactness_local)
+tune = sc_tune_compactness(r_lab, step = 16, metric = "local")
+sc = sc_slic(r_lab, step = 16, compactness = tune$compactness[[1]])
 
 rgb_back = grDevices::convertColor(lab_vals, from = "Lab", to = "sRGB")
 r_rgb_back = setValues(rast(r_rgb), rgb_back)

@@ -2,9 +2,9 @@ library(terra)
 library(supercells)
 
 r_2020 = rast("data/poland_evi_2020_bimonthly.tif")
-tune = sc_tune_compactness(r_2020, step = 100, metrics = "local")
+tune = sc_tune_compactness(r_2020, step = 100, metric = "local")
 
-sc = sc_slic(r_2020, step = 100, compactness = tune$compactness_local)
+sc = sc_slic(r_2020, step = 100, compactness = tune$compactness[[1]])
 plot(r_2020[[1]])
 plot(sc[0], add = TRUE, border = "red")
 

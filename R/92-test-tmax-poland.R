@@ -2,8 +2,8 @@ library(terra)
 library(supercells)
 
 pol_tmax_c = rast("data/poland_tmax_monthly.tif")
-tune = sc_tune_compactness(pol_tmax_c, step = 50, metrics = "local")
-sc = sc_slic(pol_tmax_c, step = 50, compactness = tune$compactness_local)
+tune = sc_tune_compactness(pol_tmax_c, step = 50, metric = "local")
+sc = sc_slic(pol_tmax_c, step = 50, compactness = tune$compactness[[1]])
 
 plot(pol_tmax_c[[1]])
 plot(sc[0], add = TRUE, border = "red")
