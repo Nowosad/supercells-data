@@ -4,3 +4,7 @@ project:
 format:
   html:
     embed-resources: true
+
+execute:
+  warning: false
+  message: false
