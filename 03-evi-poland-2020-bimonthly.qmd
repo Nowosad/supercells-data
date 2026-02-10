@@ -1,9 +1,5 @@
 ---
 title: "Poland EVI 2020 Bimonthly: Supercells Workflow"
-format: html
-execute:
-  warning: false
-  message: false
 ---
 
 <!--
@@ -33,18 +29,18 @@ panel(evi)
 ## Tune compactness at two scales
 
 ```{r tune-compactness}
-step_50km <- in_meters(50000)
-step_30km <- in_meters(30000)
+step_50km <- use_meters(50000)
+step_30km <- use_meters(30000)
 
 tune_50km <- sc_tune_compactness(
   evi,
   step = step_50km,
-  metrics = "local"
+  metric = "local"
 )
 tune_30km <- sc_tune_compactness(
   evi,
   step = step_30km,
-  metrics = "local"
+  metric = "local"
 )
 
 tune_tbl <- rbind(tune_50km, tune_30km)
@@ -69,7 +65,7 @@ sc_30km <- sc_slic(
 sc_30km_auto <- sc_slic(
   evi,
   step = step_30km,
-  compactness = "auto",
+  compactness = use_adaptive(),
   outcomes = c("supercells", "values")
 )
 cat("50 km supercells:", nrow(sc_50km), "\n")
@@ -79,9 +75,10 @@ cat("30 km supercells (auto):", nrow(sc_30km_auto), "\n")
 
 ## Plot first EVI layer with boundaries
 
-```{r plot-boundaries, fig.width=12, fig.height=5}
-par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
-
+```{r plot-boundaries}
+#| fig-width: 8
+#| fig-height: 8
+#| layout-ncol: 2
 plot(evi[[1]], main = "50 km step (map units)")
 plot(st_geometry(sc_50km), add = TRUE, border = "red", lwd = 0.6)
 
@@ -91,9 +88,10 @@ plot(st_geometry(sc_30km), add = TRUE, border = "yellow", lwd = 0.6)
 
 ## Plot 30 km tuned versus auto compactness
 
-```{r plot-compactness, fig.width=12, fig.height=5}
-par(mfrow = c(1, 2), mar = c(3, 3, 2, 1))
-
+```{r plot-compactness}
+#| fig-width: 8
+#| fig-height: 8
+#| layout-ncol: 2
 plot(evi[[1]], main = "30 km tuned compactness")
 plot(st_geometry(sc_30km), add = TRUE, border = "yellow", lwd = 0.6)
 
@@ -123,4 +121,3 @@ metrics_compactness <- rbind(
 )
 metrics_compactness
 ```
-
