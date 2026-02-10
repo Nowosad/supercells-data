@@ -1,9 +1,5 @@
 ---
 title: "Poland Tmax Monthly: Supercells Workflow"
-format: html
-execute:
-  warning: false
-  message: false
 ---
 
 <!--
@@ -36,51 +32,145 @@ tmax_scaled <- scale(tmax)
 tmax_scaled
 ```
 
-## Tune compactness for Euclidean and DTW
+## Preview raw vs scaled data
 
-```{r tune-compactness}
+```{r plot-data}
+#| fig-width: 12
+#| fig-height: 6
+#| layout-ncol: 1
+panel(tmax[[c(1, 7)]], main = c("Raw: Jan", "Raw: Jul"))
+panel(tmax_scaled[[c(1, 7)]], main = c("Scaled: Jan", "Scaled: Jul"))
+```
+
+## Tune compactness for Euclidean (raw vs scaled)
+
+```{r tune-compactness-euclidean}
 step_size <- 50
 
-tune_euclidean <- sc_tune_compactness(
+tune_euclidean_raw <- sc_tune_compactness(
   tmax,
   step = step_size,
   metric = "local",
   dist_fun = "euclidean"
 )
+tune_euclidean_scaled <- sc_tune_compactness(
+  tmax_scaled,
+  step = step_size,
+  metric = "local",
+  dist_fun = "euclidean"
+)
+
+tune_tbl <- data.frame(
+  run = c("euclidean_raw", "euclidean_scaled"),
+  compactness = c(
+    tune_euclidean_raw$compactness[[1]],
+    tune_euclidean_scaled$compactness[[1]]
+  )
+)
+tune_tbl
+```
+
+## Build Euclidean supercells (raw vs scaled)
+
+```{r build-euclidean}
+sc_euclidean_raw <- sc_slic(
+  tmax,
+  step = step_size,
+  compactness = tune_euclidean_raw$compactness[[1]],
+  dist_fun = "euclidean",
+  outcomes = c("supercells", "values")
+)
+sc_euclidean_scaled <- sc_slic(
+  tmax_scaled,
+  step = step_size,
+  compactness = tune_euclidean_scaled$compactness[[1]],
+  dist_fun = "euclidean",
+  outcomes = c("supercells", "values")
+)
+
+cat("Euclidean (raw) supercells:", nrow(sc_euclidean_raw), "\n")
+cat("Euclidean (scaled) supercells:", nrow(sc_euclidean_scaled), "\n")
+```
+
+## Plot January boundaries (Euclidean raw vs scaled)
+
+```{r plot-euclidean-boundaries}
+#| fig-width: 9
+#| fig-height: 10
+#| layout-ncol: 1
+plot(tmax[[1]], main = "Euclidean on raw")
+plot(st_geometry(sc_euclidean_raw), add = TRUE, border = "red", lwd = 0.5)
+
+plot(tmax_scaled[[1]], main = "Euclidean on scaled")
+plot(st_geometry(sc_euclidean_scaled), add = TRUE, border = "cyan", lwd = 0.5)
+```
+
+## Compare Euclidean global metrics (raw vs scaled)
+
+```{r compare-euclidean-metrics}
+metrics_euclidean <- rbind(
+  transform(sc_metrics_global(tmax, sc_euclidean_raw), run = "euclidean_raw"),
+  transform(sc_metrics_global(tmax_scaled, sc_euclidean_scaled), run = "euclidean_scaled")
+)
+metrics_euclidean
+```
+
+## Compare Euclidean pixel metrics (raw vs scaled)
+
+```{r plot-euclidean-pixel-metrics}
+#| fig-width: 12
+#| fig-height: 10
+#| layout-ncol: 3
+pix_euclidean_raw <- sc_metrics_pixels(
+  tmax,
+  sc_euclidean_raw,
+  metrics = c("spatial", "value", "balance")
+)
+pix_euclidean_scaled <- sc_metrics_pixels(
+  tmax_scaled,
+  sc_euclidean_scaled,
+  metrics = c("spatial", "value", "balance")
+)
+
+plot(pix_euclidean_raw[[1]], main = "Euclidean raw: spatial")
+plot(pix_euclidean_raw[[2]], main = "Euclidean raw: value")
+plot(pix_euclidean_raw[[3]], main = "Euclidean raw: balance")
+plot(pix_euclidean_scaled[[1]], main = "Euclidean scaled: spatial")
+plot(pix_euclidean_scaled[[2]], main = "Euclidean scaled: value")
+plot(pix_euclidean_scaled[[3]], main = "Euclidean scaled: balance")
+```
+
+## Compare Euclidean supercell metrics (raw vs scaled)
+
+```{r plot-euclidean-supercell-metrics}
+#| fig-width: 12
+#| fig-height: 10
+#| layout-ncol: 3
+sc_euclidean_metrics_raw <- sc_metrics_supercells(tmax, sc_euclidean_raw)
+sc_euclidean_metrics_scaled <- sc_metrics_supercells(tmax_scaled, sc_euclidean_scaled)
+
+plot(sc_euclidean_metrics_raw["mean_spatial_dist_scaled"], main = "Euclidean raw: mean spatial")
+plot(sc_euclidean_metrics_raw["mean_value_dist_scaled"], main = "Euclidean raw: mean value")
+plot(sc_euclidean_metrics_raw["balance"], main = "Euclidean raw: balance")
+plot(sc_euclidean_metrics_scaled["mean_spatial_dist_scaled"], main = "Euclidean scaled: mean spatial")
+plot(sc_euclidean_metrics_scaled["mean_value_dist_scaled"], main = "Euclidean scaled: mean value")
+plot(sc_euclidean_metrics_scaled["balance"], main = "Euclidean scaled: balance")
+```
+
+## Tune compactness for DTW (raw)
+
+```{r tune-compactness-dtw}
 tune_dtw_raw <- sc_tune_compactness(
   tmax,
   step = step_size,
   metric = "local",
   dist_fun = "dtw"
 )
-tune_dtw_scaled <- sc_tune_compactness(
-  tmax_scaled,
-  step = step_size,
-  metric = "local",
-  dist_fun = "dtw"
-)
-
-tune_tbl <- data.frame(
-  run = c("euclidean_raw", "dtw_raw", "dtw_scaled"),
-  compactness = c(
-    tune_euclidean$compactness[[1]],
-    tune_dtw_raw$compactness[[1]],
-    tune_dtw_scaled$compactness[[1]]
-  )
-)
-tune_tbl
 ```
 
-## Build supercells
+## Build DTW supercells (raw)
 
-```{r build-supercells}
-sc_euclidean_raw <- sc_slic(
-  tmax,
-  step = step_size,
-  compactness = tune_euclidean$compactness[[1]],
-  dist_fun = "euclidean",
-  outcomes = c("supercells", "values")
-)
+```{r build-dtw}
 sc_dtw_raw <- sc_slic(
   tmax,
   step = step_size,
@@ -88,40 +178,26 @@ sc_dtw_raw <- sc_slic(
   dist_fun = "dtw",
   outcomes = c("supercells", "values")
 )
-sc_dtw_scaled <- sc_slic(
-  tmax_scaled,
-  step = step_size,
-  compactness = tune_dtw_scaled$compactness[[1]],
-  dist_fun = "dtw",
-  outcomes = c("supercells", "values")
-)
 
-cat("Euclidean (raw) supercells:", nrow(sc_euclidean_raw), "\n")
 cat("DTW (raw) supercells:", nrow(sc_dtw_raw), "\n")
-cat("DTW (scaled) supercells:", nrow(sc_dtw_scaled), "\n")
 ```
 
-## Plot January boundaries
+## Plot January boundaries (Euclidean vs DTW on raw)
 
-```{r plot-boundaries, fig.width=9, fig.height=16}
-par(mfrow = c(3, 1), mar = c(3, 3, 2, 1))
-
+```{r plot-dtw-boundaries}
+#| fig-width: 9
+#| fig-height: 10
+#| layout-ncol: 1
 plot(tmax[[1]], main = "Euclidean on raw")
 plot(st_geometry(sc_euclidean_raw), add = TRUE, border = "red", lwd = 0.5)
 
 plot(tmax[[1]], main = "DTW on raw")
 plot(st_geometry(sc_dtw_raw), add = TRUE, border = "yellow", lwd = 0.5)
-
-plot(tmax[[1]], main = "DTW on scaled")
-plot(st_geometry(sc_dtw_scaled), add = TRUE, border = "cyan", lwd = 0.5)
 ```
 
-## Compare global metrics
+## Compare Euclidean vs DTW metrics (raw)
 
-Note: `euclidean_raw` and `dtw_raw` are directly comparable because both are computed on the raw raster (`tmax`).  
-`dtw_scaled` is computed on standardized values (`tmax_scaled`), so it is reported separately.
-
-```{r compare-metrics}
+```{r compare-dtw-metrics}
 metrics_raw <- rbind(
   transform(sc_metrics_global(tmax, sc_euclidean_raw), run = "euclidean_raw"),
   transform(sc_metrics_global(tmax, sc_dtw_raw), run = "dtw_raw")
@@ -129,10 +205,38 @@ metrics_raw <- rbind(
 metrics_raw
 ```
 
-```{r compare-metrics-scaled}
-metrics_scaled <- transform(
-  sc_metrics_global(tmax_scaled, sc_dtw_scaled),
-  run = "dtw_scaled"
+## Compare Euclidean vs DTW pixel metrics (raw)
+
+```{r plot-dtw-pixel-metrics}
+#| fig-width: 12
+#| fig-height: 10
+#| layout-ncol: 3
+pix_dtw <- sc_metrics_pixels(
+  tmax,
+  sc_dtw_raw,
+  metrics = c("spatial", "value", "balance")
 )
-metrics_scaled
+
+plot(pix_euclidean_raw[[1]], main = "Euclidean raw: spatial")
+plot(pix_euclidean_raw[[2]], main = "Euclidean raw: value")
+plot(pix_euclidean_raw[[3]], main = "Euclidean raw: balance")
+plot(pix_dtw[[1]], main = "DTW raw: spatial")
+plot(pix_dtw[[2]], main = "DTW raw: value")
+plot(pix_dtw[[3]], main = "DTW raw: balance")
+```
+
+## Compare Euclidean vs DTW supercell metrics (raw)
+
+```{r plot-dtw-supercell-metrics}
+#| fig-width: 12
+#| fig-height: 10
+#| layout-ncol: 3
+sc_dtw_metrics <- sc_metrics_supercells(tmax, sc_dtw_raw)
+
+plot(sc_euclidean_metrics_raw["mean_spatial_dist_scaled"], main = "Euclidean raw: mean spatial")
+plot(sc_euclidean_metrics_raw["mean_value_dist_scaled"], main = "Euclidean raw: mean value")
+plot(sc_euclidean_metrics_raw["balance"], main = "Euclidean raw: balance")
+plot(sc_dtw_metrics["mean_spatial_dist_scaled"], main = "DTW raw: mean spatial")
+plot(sc_dtw_metrics["mean_value_dist_scaled"], main = "DTW raw: mean value")
+plot(sc_dtw_metrics["balance"], main = "DTW raw: balance")
 ```
