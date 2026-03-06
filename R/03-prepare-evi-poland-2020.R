@@ -45,3 +45,46 @@ writeRaster(
         )
     )
 )
+
+r_2020 = rast("data/poland_evi_2020_bimonthly.tif")
+
+fill_small_na = function(x, max_patch_cells = 49, wins = c(3, 5, 7, 9)) {
+  na = is.na(x)
+  p = patches(na, values = TRUE, directions = 8)               # connected NA areas
+  f = freq(p)
+  ids_small = f$value[f$count <= max_patch_cells]
+  small_mask = p %in% ids_small                 # TRUE only for small NA patches
+
+  y = x
+  for (k in wins) {
+    neigh = focal(
+      y,
+      w = matrix(1, k, k),
+      fun = "mean",                              # or mean
+      na.rm = TRUE,
+      na.policy = "only"
+    )
+    y = ifel(is.na(y) & small_mask, neigh, y)
+  }
+  y
+}
+
+system.time({
+r_2020_filled = rast(lapply(1:nlyr(r_2020), function(i) fill_small_na(r_2020[[i]])))
+names(r_2020_filled) = names(r_2020)
+})
+
+writeRaster(
+    r_2020_filled,
+    filename = "data/poland_evi_2020_bimonthly_filled.tif",
+    overwrite = TRUE,
+    gdal = "COG",
+    wopt = list(
+        gdal = c(
+            "COMPRESS=ZSTD",
+            "LEVEL=19",
+            "PREDICTOR=2",
+            "BLOCKSIZE=512"
+        )
+    )
+)

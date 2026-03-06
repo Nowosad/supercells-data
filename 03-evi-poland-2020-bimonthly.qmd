@@ -16,14 +16,15 @@ idea notes: do not remove
 library(terra)
 library(sf)
 library(supercells)
+cols = hcl.colors(100, "Viridis")
 ```
 
 ## Load input data
 
 ```{r read-data}
-evi <- rast("data/poland_evi_2020_bimonthly.tif")
+evi <- rast("data/poland_evi_2020_bimonthly_filled.tif")
 evi
-panel(evi)
+panel(evi, col = rev(cols))
 ```
 
 ## Tune compactness at two scales
@@ -79,10 +80,11 @@ cat("30 km supercells (auto):", nrow(sc_30km_auto), "\n")
 #| fig-width: 8
 #| fig-height: 8
 #| layout-ncol: 2
-plot(evi[[1]], main = "50 km step (map units)")
+
+plot(evi[[1]], main = "50 km step (map units)", col = rev(cols))
 plot(st_geometry(sc_50km), add = TRUE, border = "red", lwd = 0.6)
 
-plot(evi[[1]], main = "30 km step (tuned compactness)")
+plot(evi[[1]], main = "30 km step (tuned compactness)", col = rev(cols))
 plot(st_geometry(sc_30km), add = TRUE, border = "yellow", lwd = 0.6)
 ```
 
@@ -92,10 +94,10 @@ plot(st_geometry(sc_30km), add = TRUE, border = "yellow", lwd = 0.6)
 #| fig-width: 8
 #| fig-height: 8
 #| layout-ncol: 2
-plot(evi[[1]], main = "30 km tuned compactness")
+plot(evi[[1]], main = "30 km tuned compactness", col = rev(cols))
 plot(st_geometry(sc_30km), add = TRUE, border = "yellow", lwd = 0.6)
 
-plot(evi[[1]], main = "30 km auto compactness")
+plot(evi[[1]], main = "30 km auto compactness", col = rev(cols))
 plot(st_geometry(sc_30km_auto), add = TRUE, border = "cyan", lwd = 0.6)
 ```
 
