@@ -36,12 +36,12 @@ step_30km <- use_meters(30000)
 tune_50km <- sc_tune_compactness(
   evi,
   step = step_50km,
-  metric = "local"
+  metric = "local_variability"
 )
 tune_30km <- sc_tune_compactness(
   evi,
   step = step_30km,
-  metric = "local"
+  metric = "local_variability"
 )
 
 tune_tbl <- rbind(tune_50km, tune_30km)

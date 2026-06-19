@@ -34,16 +34,15 @@ step_size <- 25
 tune_euclidean <- sc_tune_compactness(
   emb,
   step = step_size,
-  metric = "local",
+  metric = "local_variability",
   dist_fun = "euclidean"
 )
 
 tune_cosine <- sc_tune_compactness(
   emb,
   step = step_size,
-  metric = "local",
+  metric = "local_variability",
   dist_fun = "cosine",
-  value_scale = 1
 )
 
 tune_tbl <- rbind(
