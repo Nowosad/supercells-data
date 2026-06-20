@@ -66,7 +66,7 @@ map_cosine_min = tm_shape(pcs) +
   tm_title("Cosine: Minimum compactness tuning") +
   tm_layout(frame = FALSE)
 
-map_cosine = tmap_arrange(map_cosine_median, map_cosine_min)
+map_cosine = tmap_arrange(map_cosine_median, map_cosine_min, nrow = 2)
 tmap_save(map_cosine, "figs/muenster_supercells_cosine.png", 
-          width = 1700, height = 1000, units = "px", dpi = 150)
+          width = 1000, height = 1700, units = "px", dpi = 150)
 

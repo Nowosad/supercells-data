@@ -49,14 +49,16 @@ tm_sc_mpix = tm_shape(metrics_pixels_50km[[1:3]]) +
   tm_raster(
       col.scale = tm_scale_continuous(values = "ArmyRose"),
       col.legend = tm_legend(title = "", frame = FALSE,
-                        orientation = "landscape", text.size = 0.4),
+                        orientation = "landscape", text.size = 0.4, 
+                        position = tm_pos_in("center", "bottom")),
                         
   ) +
   tm_shape(sc_50km_tuned) +
   tm_borders(col = "#FF2DAA", lwd = 0.25) +
-  tm_facets(nrow = 1) +
-  tm_layout(panel.labels = c("Spatial Compactness", "Value Homogeneity", "Combined Distance")) +
-  tm_options(component.autoscale = FALSE)
+  tm_facets(nrow = 3) +
+  tm_layout(panel.labels = c("Spatial Compactness", "Value Homogeneity", "Combined Distance"),
+            inner.margins = c(0.2, 0.02, 0.02, 0.02)) #+
+  # tm_options(component.autoscale = FALSE)
 # tm_sc_mpix
 
 tm_sc_msc = tm_shape(metrics_supercells_50km) +
@@ -64,15 +66,16 @@ tm_sc_msc = tm_shape(metrics_supercells_50km) +
     fill = c("mean_spatial_dist_scaled", "mean_value_dist_scaled", "mean_combined_dist"),
     fill.scale = tm_scale_continuous(values = "ArmyRose"),
     fill.legend = tm_legend(title = "", frame = FALSE,
-                          position = tm_pos_out("center", "bottom", "center"),
-                          orientation = "landscape"),
+                          # position = tm_pos_out("center", "bottom", "center"),
+                            orientation = "landscape", text.size = 0.4, 
+                            position = tm_pos_in("center", "bottom")),
     fill.free = FALSE
 ) +
   tm_shape(sc_50km_tuned) +
   tm_borders(col = "#FF2DAA", lwd = 0.25) +
-  tm_facets(nrow = 1) +
+  tm_facets(nrow = 3) +
   tm_layout(
-    # inner.margins = c(0.02, 0.2, 0.02, 0.02),
+    inner.margins = c(0.2, 0.02, 0.02, 0.02),
     panel.labels = c("Mean Spatial Compactness", "Mean Value Homogeneity", "Mean Combined Distance")
   )
 # tm_sc_msc
@@ -89,6 +92,6 @@ metrics_global_50km |>
 tmap_save(tm_sc, "figs/poland_evi_2020_50km_supercells.png",
           width = 1700, height = 1300, units = "px", dpi = 150)
 tmap_save(tm_sc_mpix, "figs/poland_evi_2020_50km_supercells_pixels.png",
-          width = 1700, height = 650, units = "px", dpi = 200)
+          width = 650, height = 1700, units = "px", dpi = 200)
 tmap_save(tm_sc_msc, "figs/poland_evi_2020_50km_supercells_supercells.png",
-          width = 1700, height = 650, units = "px", dpi = 200)
+          width = 650, height = 1700, units = "px", dpi = 200)
