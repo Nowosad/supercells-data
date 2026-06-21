@@ -82,11 +82,16 @@ tm_sc_msc = tm_shape(metrics_supercells_50km) +
 
 dir.create("figs")
 metrics_global_50km |>
-  dplyr::select(step, compactness, n_supercells, 
-         `Mean spatial distance (scaled)` = mean_spatial_dist_scaled,
-         `Mean value distance (scaled)` = mean_value_dist_scaled,
-         `Mean combined distance` = mean_combined_dist) |>
-  knitr::kable(format = "latex") |>
+  # dplyr::select(step, compactness, n_supercells, 
+  #        `Mean spatial distance (scaled)` = mean_spatial_dist_scaled,
+  #        `Mean value distance (scaled)` = mean_value_dist_scaled,
+  #        `Mean combined distance` = mean_combined_dist) |>
+  dplyr::select(step, compactness, 
+         `No of supercells` = n_supercells, 
+         `Spatial distance` = mean_spatial_dist_scaled,
+         `Value distance` = mean_value_dist_scaled,
+         `Combined distance` = mean_combined_dist) |>
+  knitr::kable(format = "latex", digits = 3) |>
   writeLines("figs/poland_evi_2020_50km_supercells_metrics.tex")
 
 tmap_save(tm_sc, "figs/poland_evi_2020_50km_supercells.png",
